@@ -1,16 +1,19 @@
+#! /usr/bin/env python
+
 import serial
 import time
 import datetime
+import struct
 
 class Arduino():
     
-    def __init__(self, port = None, baudrate = 203400, timeout = 1):
+    def __init__(self, port = None, baudrate = 57600, timeout = 1):
         
-        self._start_message = b'\xff\xff'
+        self._start_message = b'\x02'
         self._end_message = b'\xff\xff'
         self._pkgtimeout = 10
         self._pkgtimeout_timer = 0
-        self._messagewaittime = 0.0
+        self._messagewaittime = 0.0001
         self._droppedpackages = 0
             
         if port:
@@ -32,19 +35,18 @@ class Arduino():
         if self.ser:
             self.ser.close()
             
-    def getRawPosition(self):
+    def get_analog_voltage(self):
         
         if self.ser:
             self.ser.write(b'\x02')
             time.sleep(self._messagewaittime)
             data = self.ser.read(self.ser.inWaiting())
             parsedData = self._parseData(data)
-            #print(data, parsedData)
             try:
-                rawPosition = (parsedData[1] << 8) | parsedData[2]
+                rawVoltage = struct.unpack('>h', parsedData)[0]
                 self._pkgtimeout_timer = 0
+                return rawVoltage
                 
-                return rawPosition
             except:
                 print ('Bad Data recieved', data, parsedData)
                 self._pkgtimeout_timer += 1
@@ -52,7 +54,7 @@ class Arduino():
                 if self._pkgtimeout_timer > self._pkgtimeout:
                     raise ValueError ('Bad Data Timeout exceeded')
                 else:    
-                    return self.getRawPosition()
+                    return self.get_analog_voltage()
             
         else:
             print ('Serial Communication not Established')
@@ -75,12 +77,7 @@ class Arduino():
                 break
         
         if END_FLAG:  
-#            for i in range(pkg_length-end_message_length):
-#                if package[i:i+start_message_length] == self._start_message:
-#                    start_index = i+2
-#                    START_FLAG = True
-#                    break
-            return package[:end_index]
+            return package[len(self._start_message):end_index]
         
         else:
             #print('Message Not Complete: Looping')

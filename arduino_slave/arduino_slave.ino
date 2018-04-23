@@ -10,6 +10,9 @@
 // Pin declares
 int analogPin = A0; 
 
+//Variables
+int rawVoltage;
+
 //Kyle
 int LED = 13;
 int inByte;
@@ -55,11 +58,11 @@ void loop()
   if ( Serial.available() > 0 ) {
     inByte = Serial.read();
     if ( inByte == 2 ) {
-      rawPos = analogRead(sensorPosPin);  //current voltage from analog pin
+      rawVoltage = analogRead(analogPin);  //current voltage from analog pin
       
       Serial.write(0x02);
       
-      SendTwoByteInt(rawPos);
+      SendTwoByteInt(rawVoltage);
       
       Serial.write(0xFF);
       Serial.write(0xFF);
