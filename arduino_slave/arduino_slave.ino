@@ -8,10 +8,12 @@
 #include <math.h>
 
 // Pin declares
-int analogPin = A0; 
+int analogPin1 = A0; 
+int analogPin2 = A1;
 
 //Variables
-int rawVoltage;
+int rawVoltage1;
+int rawVoltage2;
 
 //Kyle
 int LED = 13;
@@ -23,11 +25,12 @@ int inByte;
 void setup() 
 {
   // Set up serial communication
-  Serial.begin(57600);
+  Serial.begin(115200);
   
   // Input pins
-  pinMode(analogPin, INPUT); // set MR sensor pin to be an input
-
+  pinMode(analogPin1, INPUT); // set MR sensor pin to be an input
+  pinMode(analogPin2, INPUT); 
+  
   // Output pins
 
   // LED
@@ -58,11 +61,13 @@ void loop()
   if ( Serial.available() > 0 ) {
     inByte = Serial.read();
     if ( inByte == 2 ) {
-      rawVoltage = analogRead(analogPin);  //current voltage from analog pin
+      rawVoltage1 = analogRead(analogPin1);  //current voltage from analog pin
+      rawVoltage2 = analogRead(analogPin2);  
       
       Serial.write(0x02);
       
-      SendTwoByteInt(rawVoltage);
+      SendTwoByteInt(rawVoltage1);
+      SendTwoByteInt(rawVoltage2);
       
       Serial.write(0xFF);
       Serial.write(0xFF);
