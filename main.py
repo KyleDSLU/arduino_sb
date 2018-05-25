@@ -1,17 +1,23 @@
+#! /usr/bin/env python
+
 import serial
 import time
 import datetime
+import struct
 
 class Arduino():
     
-    def __init__(self, port = None, baudrate = 203400, timeout = 1):
+    def __init__(self, port = None, baudrate = 115200, timeout = 1):
         
-        self._start_message = b'\xff\xff'
+        self._start_message = b'\x02'
         self._end_message = b'\xff\xff'
         self._pkgtimeout = 10
         self._pkgtimeout_timer = 0
-        self._messagewaittime = 0.0
+        self._messagewaittime = 0.003
         self._droppedpackages = 0
+
+        self._serial_recursions = 0
+        self._serial_timer = 300 
             
         if port:
             self.ser = serial.Serial(port = port, baudrate = baudrate, timeout = timeout)
@@ -32,27 +38,35 @@ class Arduino():
         if self.ser:
             self.ser.close()
             
-    def getRawPosition(self):
+    def get_analog_voltage(self,expected_values):
         
         if self.ser:
             self.ser.write(b'\x02')
             time.sleep(self._messagewaittime)
             data = self.ser.read(self.ser.inWaiting())
             parsedData = self._parseData(data)
-            #print(data, parsedData)
+            #print len(parsedData), len(data)
             try:
-                rawPosition = (parsedData[1] << 8) | parsedData[2]
+                if len(parsedData) != expected_values*2:
+                    raise ValueError('Bad Serial Read')
+
+                output = []
+                for i in range(len(parsedData)/2):
+                    output.append(struct.unpack('>h',parsedData[2*i:2*i+2])[0])
+                #rawVoltage = struct.unpack('>h', parsedData)[0]
                 self._pkgtimeout_timer = 0
+                return output
                 
-                return rawPosition
             except:
-                print ('Bad Data recieved', data, parsedData)
+                #print ('Bad Data recieved', data, parsedData)
                 self._pkgtimeout_timer += 1
                 self._droppedpackages += 1
                 if self._pkgtimeout_timer > self._pkgtimeout:
                     raise ValueError ('Bad Data Timeout exceeded')
                 else:    
-                    return self.getRawPosition()
+                    self.ser.reset_input_buffer()
+                    self.ser.reset_output_buffer()
+                    return self.get_analog_voltage(expected_values)
             
         else:
             print ('Serial Communication not Established')
@@ -75,14 +89,14 @@ class Arduino():
                 break
         
         if END_FLAG:  
-#            for i in range(pkg_length-end_message_length):
-#                if package[i:i+start_message_length] == self._start_message:
-#                    start_index = i+2
-#                    START_FLAG = True
-#                    break
-            return package[:end_index]
+            self._serial_recursions = 0
+            return package[len(self._start_message):end_index]
+
+        if self._serial_recursions > self._serial_timer:
+            return None
         
         else:
+            self._serial_recursions += 1
             #print('Message Not Complete: Looping')
             #self._droppedpackages += 1
             package = package + self.ser.read(self.ser.inWaiting())
